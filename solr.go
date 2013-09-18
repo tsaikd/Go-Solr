@@ -1,8 +1,6 @@
-/*
- * Go Solr, a Solr library written in Go.
- * Original author Rich Taylor, 2012 - http://rsty.org/, http://github.com/rtt/
- * Released under the "do whatever the fuck you want" license. http://sam.zoy.org/wtfpl/
- */
+// Go Solr, a Solr library written in Go.
+// Original author Rich Taylor, 2012 - http://rsty.org/, http://github.com/rtt/
+// Released under the "do whatever the fuck you want" license. http://sam.zoy.org/wtfpl/
 
 package solr
 
@@ -12,50 +10,32 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"net/url"
+	"strconv"
 )
 
-/*
- * Represents a "connection"; actually just a host and port
- * (and probably at some point a Solr Core name)
- */
-type Connection struct {
-	Host    string
-	Port    int
-	Core    string
-	Version []int
-}
-
-/*
- * Represents a Solr document, as returned by Select queries
- */
+// Represents a Solr document, as returned by Select queries.
 type Document struct {
 	Fields map[string]interface{}
 }
 
-/*
- * Represents a FacetCount for a Facet
- */
+// Represents a FacetCount for a Facet.
 type FacetCount struct {
 	Value string
 	Count int
 }
 
-/* chunked size of facet solr return format */
+// Chunked size of facet solr return format.
 var facet_chunk_size int = 2
 
-/*
- * Represents a Facet with a name and count
- */
+// Represents a Facet with a name and count.
 type Facet struct {
 	Name   string       // accepts_4x4s
 	Counts []FacetCount // a set of values
 }
 
-/*
- * Represents a collection of solr documents
- * and various other metrics
- */
+// Represents a collection of solr documents
+// and various other metrics
 type DocumentCollection struct {
 	Facets     []Facet
 	Collection []Document
@@ -64,9 +44,7 @@ type DocumentCollection struct {
 	Start      int
 }
 
-/*
- * Represents a Solr response
- */
+// Represents a Solr response.
 type SelectResponse struct {
 	Results *DocumentCollection
 	Status  int
@@ -74,9 +52,7 @@ type SelectResponse struct {
 	// TODO: Debug info as well?
 }
 
-/*
- * Represents an error from Solr
- */
+// Represents an error from Solr.
 type ErrorResponse struct {
 	Message string
 	Status  int
@@ -86,89 +62,117 @@ type UpdateResponse struct {
 	Success bool
 }
 
-/*
- * Holds URL parameters
- */
-type URLParamMap map[string][]string
-
-/*
- * Query represents a query with various params
- */
 type Query struct {
-	Params     URLParamMap
-	Rows       int
-	Start      int
-	Sort       string
-	DefType    string
-	Debug      bool
-	OmitHeader bool
+	params url.Values
 }
 
-/*
- * Query.String() returns the Query in solr query string format
- */
+func NewQuery() *Query {
+	q := &Query{}
+	q.params = url.Values{}
+	return q
+}
+
+// Returns the solr query in url-encoded string format.
 func (q *Query) String() string {
-	// TODO: this is kinda ugly
-	s := []string{}
-
-	if len(q.Params) > 0 {
-		s = append(s, EncodeURLParamMap(&q.Params))
-	}
-
-	if q.Rows != 0 {
-		s = append(s, fmt.Sprintf("rows=%d", q.Rows))
-	}
-
-	if q.Start != 0 {
-		s = append(s, fmt.Sprintf("start=%d", q.Start))
-	}
-
-	if q.Sort != "" {
-		s = append(s, fmt.Sprintf("sort=%s", q.Sort))
-	}
-
-	if q.DefType != "" {
-		s = append(s, fmt.Sprintf("deftype=%s", q.DefType))
-	}
-
-	if q.Debug {
-		s = append(s, fmt.Sprintf("debugQuery=true"))
-	}
-
-	if q.OmitHeader {
-		s = append(s, fmt.Sprintf("omitHeader=true"))
-	}
-
-	return strings.Join(s, "&")
+	q.params.Set("wt", "json")
+	return q.params.Encode()
 }
 
-/*
- * DocumentCollection.Get() returns the document in the collection
- * at position i
- */
+func (q *Query) ParamAdd(name string, value string) *Query {
+	q.params.Add(name, value)
+	return q
+}
+
+func (q *Query) ParamSet(name string, value string) *Query {
+	q.params.Set(name, value)
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#fq
+func (q *Query) Filter(v string) *Query {
+	q.params.Add("fq", v)
+	return q
+}
+
+// http://wiki.apache.org/solr/SimpleFacetParameters#facet
+func (q *Query) Facet() *Query {
+	q.params.Set("facet", "true")
+	return q
+}
+
+// http://wiki.apache.org/solr/SimpleFacetParameters#facet.limit
+func (q *Query) FacetLimit(v int) *Query {
+	q.params.Set("facet.limit", strconv.Itoa(v))
+	return q
+}
+
+// http://wiki.apache.org/solr/SimpleFacetParameters#facet.field
+func (q *Query) FacetField(v string) *Query {
+	q.params.Add("facet.field", v)
+	return q
+}
+
+func (q *Query) FacetFieldMulti(v []string) *Query {
+	for _, val := range v {
+		q.params.Add("facet.field", val)
+	}
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#rows
+func (q *Query) Rows(v int) *Query {
+	q.params.Set("rows", strconv.Itoa(v))
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#start
+func (q *Query) Start(v int) *Query {
+	q.params.Set("start", strconv.Itoa(v))
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#sort
+func (q *Query) Sort(v string) *Query {
+	q.params.Set("sort", v)
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#defType
+func (q *Query) DefType(v string) *Query {
+	q.params.Set("deftype", v)
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#debugQuery
+func (q *Query) Debug() *Query {
+	q.params.Set("debugQuery", "true")
+	return q
+}
+
+// http://wiki.apache.org/solr/CommonQueryParameters#omitHeader
+func (q *Query) OmitHeader() *Query {
+	q.params.Set("omitHeader", "true")
+	return q
+}
+
+// DocumentCollection.Get() returns the document in the collection
+// at position i.
 func (d *DocumentCollection) Get(i int) *Document {
 	return &d.Collection[i]
 }
 
-/*
- * DocumentCollection.Len() returns the amount of documents
- * in the collection
- */
+// DocumentCollection.Len() returns the amount of documents in the collection.
 func (d *DocumentCollection) Len() int {
 	return len(d.Collection)
 }
 
-/*
- * Document.Field() returns the value of the given field name in the document
- */
+// Document.Field() returns the value of the given field name in the document
 func (document Document) Field(field string) interface{} {
 	r, _ := document.Fields[field]
 	return r
 }
 
-/*
- * Document.Doc() returns the raw document (map)
- */
+// Document.Doc() returns the raw document (map)
 func (document Document) Doc() map[string]interface{} {
 	return document.Fields
 }
@@ -188,25 +192,19 @@ func (r UpdateResponse) String() string {
 	return fmt.Sprintf("UpdateResponse: FAIL")
 }
 
-/*
- * Performs a GET request to the given url
- * Returns a []byte containing the response body
- */
+// Performs a GET request to the given url
+// Returns a []byte containing the response body
 func HTTPGet(url string) ([]byte, error) {
-
 	r, err := http.Get(url)
-
 	if err != nil {
 		return nil, err
 	}
-
 	defer r.Body.Close()
 
 	if err != nil {
 		return nil, fmt.Errorf("GET failed (%s)", url)
 	}
 
-	// read the response and check
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Response read failed")
@@ -215,38 +213,31 @@ func HTTPGet(url string) ([]byte, error) {
 	return body, nil
 }
 
-/*
- * Performs a HTTP Post request. Takes:
- * * A url
- * * Headers, in the format [][]string{} (e.g., [[key, val], [key, val], ...])
- * * A payload (post request body) which can be nil
- * * Returns the body of the response and an error if necessary
- */
+// Performs a HTTP Post request. Takes:
+//  * A url
+//  * Headers, in the format [][]string{} (e.g., [[key, val], [key, val], ...])
+//  * A payload (post request body) which can be nil
+//  * Returns the body of the response and an error if necessary
 func HTTPPost(url string, headers [][]string, payload *[]byte) ([]byte, error) {
-	// setup post client
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, bytes.NewReader(*payload))
 
-	// add headers
 	if len(headers) > 0 {
 		for i := range headers {
 			req.Header.Add(headers[i][0], headers[i][1])
 		}
 	}
 
-	// perform request
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-
 	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, fmt.Errorf(fmt.Sprintf("POST request failed: %s", err))
 	}
 
-	// read response, check & return
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -255,100 +246,91 @@ func HTTPPost(url string, headers [][]string, payload *[]byte) ([]byte, error) {
 	return body, nil
 }
 
-/*
- * Returns a URLEncoded version of a Param Map
- * E.g., ParamMap[foo:bar omg:wtf] => "foo=bar&omg=wtf"
- * TODO: This isn't exactly safe and there's probably a library pkg to do this already...
- */
-func EncodeURLParamMap(m *URLParamMap) string {
-	r := []string{}
-
-	for k, v := range *m {
-		l := len(v)
-		for x := 0; x < l; x++ {
-			r = append(r, fmt.Sprintf("%s=%s", k, v[x]))
-		}
+// Generates a Solr query string from a connection and a query string.
+func SolrSelectString(c *Connection, q *Query) string {
+	u := url.URL{
+		Scheme:   c.Addr.Scheme,
+		Opaque:   c.Addr.Opaque,
+		User:     c.Addr.User,
+		Host:     c.Addr.Host,
+		Path:     c.Addr.Path,
+		RawQuery: c.Addr.RawQuery,
+		Fragment: c.Addr.Fragment,
 	}
-
-	return strings.Join(r, "&")
+	u.Path += "/select"
+	u.RawQuery = q.String()
+	return u.String()
 }
 
-/*
- * Generates a Solr query string from a connection and a query string
- */
-func SolrSelectString(c *Connection, q string) string {
-	return fmt.Sprintf("http://%s:%d/solr/select?wt=json&%s", c.Host, c.Port, q)
-}
-
-/*
- * Generates a Solr update query string. Adds ?commit=true
- * if commit arg is true.
- */
+// Generates a Solr update query string. Adds ?commit=true if commit arg is
+// true.
 func SolrUpdateString(c *Connection, commit bool) string {
-	s := fmt.Sprintf("http://%s:%d/solr/update", c.Host, c.Port)
-	if commit {
-		return fmt.Sprintf("%s?commit=true", s)
+	u := url.URL{
+		Scheme:   c.Addr.Scheme,
+		Opaque:   c.Addr.Opaque,
+		User:     c.Addr.User,
+		Host:     c.Addr.Host,
+		Path:     c.Addr.Path,
+		RawQuery: c.Addr.RawQuery,
+		Fragment: c.Addr.Fragment,
 	}
-	return s
+	u.Path += "/update"
+
+	if commit {
+		q := u.Query()
+		q.Set("commit", "true")
+		u.RawQuery = q.Encode()
+	}
+
+	return u.String()
 }
 
-/*
- * Decodes a json formatted []byte into an interface{} type
- */
+// Decodes a json formatted []byte into an interface{} type
 func BytesToJSON(b *[]byte) (*interface{}, error) {
 	var container interface{}
 	err := json.Unmarshal(*b, &container)
-
 	if err != nil {
 		return nil, fmt.Errorf("Response decode error")
 	}
-
 	return &container, nil
 }
 
-/*
- * Encodes a map[string]interface{} to bytes and returns
- * a pointer to said bytes
- */
+// Encodes a map[string]interface{} to bytes and returns
+// a pointer to said bytes.
 func JSONToBytes(m map[string]interface{}) (*[]byte, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to encode JSON")
 	}
-
 	return &b, nil
 }
 
-/*
- * Takes a JSON formatted Solr response (interface{}, not []byte)
- * And returns a *Response
- */
+// Takes a JSON formatted Solr response (interface{}, not []byte) and returns a
+// *Response.
 func BuildResponse(j *interface{}) (*SelectResponse, error) {
-
-	// look for a response element, bail if not present
+	// Look for a response element, bail if not present.
 	response_root := (*j).(map[string]interface{})
 	response := response_root["response"]
 	if response == nil {
 		return nil, fmt.Errorf("Supplied interface appears invalid (missing response)")
 	}
 
-	// begin Response creation
+	// Begin Response creation.
 	r := SelectResponse{}
 
-	// do status & qtime, if possible
+	// Do status & qtime, if possible.
 	r_header := (*j).(map[string]interface{})["responseHeader"].(map[string]interface{})
 	if r_header != nil {
 		r.Status = int(r_header["status"].(float64))
 		r.QTime = int(r_header["QTime"].(float64))
 	}
 
-	// now do docs, if they exist in the response
+	// Now do docs, if they exist in the response.
 	docs := response.(map[string]interface{})["docs"].([]interface{})
 	if docs != nil {
-		// the total amount of results, irrespective of the amount returned in the response
+		// The total amount of results, irrespective of the amount returned in
+		// the response and the amount actually returned.
 		num_found := int(response.(map[string]interface{})["numFound"].(float64))
-
-		// and the amount actually returned
 		num_results := len(docs)
 
 		coll := DocumentCollection{}
@@ -364,7 +346,7 @@ func BuildResponse(j *interface{}) (*SelectResponse, error) {
 		r.Results = &coll
 	}
 
-	// facets
+	// Facets.
 	facet_response, ok := response_root["facet_counts"].(interface{})
 	if ok == true {
 		facet_counts := facet_response.(map[string]interface{})
@@ -391,16 +373,13 @@ func BuildResponse(j *interface{}) (*SelectResponse, error) {
 			// add Facets to collection
 			r.Results.Facets = facets
 			r.Results.NumFacets = len(facets)
-
 		}
 	}
 
 	return &r, nil
 }
 
-/*
- * Decodes a HTTP (Solr) response and returns a Response
- */
+// Decodes a HTTP (Solr) response and returns a Response.
 func SelectResponseFromHTTPResponse(b []byte) (*SelectResponse, error) {
 	j, err := BytesToJSON(&b)
 	if err != nil {
@@ -415,14 +394,12 @@ func SelectResponseFromHTTPResponse(b []byte) (*SelectResponse, error) {
 	return resp, nil
 }
 
-/*
- * Determines whether a decoded response from Solr
- * is an error response or not. Returns a bool (true if error)
- * and an ErrorResponse (if the response is an error response)
- * otherwise nil
- */
+// Determines whether a decoded response from Solr
+// is an error response or not. Returns a bool (true if error)
+// and an ErrorResponse (if the response is an error response)
+// otherwise nil.
 func SolrErrorResponse(m map[string]interface{}) (bool, *ErrorResponse) {
-	// check for existance of "error" key
+	// Check for existance of "error" key.
 	if _, found := m["error"]; found {
 		error := m["error"].(map[string]interface{})
 		return true, &ErrorResponse{
@@ -433,11 +410,9 @@ func SolrErrorResponse(m map[string]interface{}) (bool, *ErrorResponse) {
 	return false, nil
 }
 
-/*
- * Similar to python's itertools.izip_longest;
- * takes an array and chunks it according to a given splice size
- * eg: chnunk([1,2,3,4,5,6], 2) == [[1,2], [3,4], [5,6]]
- */
+// Similar to python's itertools.izip_longest;
+// takes an array and chunks it according to a given splice size
+// eg: chnunk([1,2,3,4,5,6], 2) == [[1,2], [3,4], [5,6]]
 func chunk(s []interface{}, sz int) [][]interface{} {
 	r := [][]interface{}{}
 	j := len(s)
@@ -447,47 +422,25 @@ func chunk(s []interface{}, sz int) [][]interface{} {
 	return r
 }
 
-/*
- * Inits a new Connection to a Solr instance
- * Note: this doesn't actually hold a connection, its just
- *       a container for holding a hostname & port
- */
-func Init(host string, port int) (*Connection, error) {
-
-	if len(host) == 0 {
-		return nil, fmt.Errorf("Invalid hostname (must be length >= 1)")
-	}
-
-	if port <= 0 || port > 65535 {
-		return nil, fmt.Errorf("Invalid port (must be 1..65535")
-	}
-
-	return &Connection{Host: host, Port: port}, nil
-}
-
-/*
- * Performs a Select query given a Query
- */
-func (c *Connection) Select(q *Query) (*SelectResponse, error) {
-	body, err := HTTPGet(SolrSelectString(c, q.String()))
-
+//  Inits a new Connection to a Solr instance
+//  Note: this doesn't actually hold a connection, its just
+//        a container for holding a hostname & port
+func Init(addr string) (*Connection, error) {
+	u, err := url.Parse(addr)
 	if err != nil {
-		return nil, fmt.Errorf("Some sort of http failure") // TODO: investigate how net/http fails
-	}
-
-	r, err := SelectResponseFromHTTPResponse(body)
-
-	if err != nil {
+		fmt.Errorf("Invalid address", err)
 		return nil, err
 	}
-
-	return r, nil
+	return &Connection{Addr: u}, nil
 }
 
-/*
- * Performs a raw Select query given a raw query string
- */
-func (c *Connection) SelectRaw(q string) (*SelectResponse, error) {
+type Connection struct {
+	Addr    *url.URL
+	Version []int
+}
+
+// Performs a Select query given a Query
+func (c *Connection) Select(q *Query) (*SelectResponse, error) {
 	body, err := HTTPGet(SolrSelectString(c, q))
 
 	if err != nil {
@@ -503,23 +456,35 @@ func (c *Connection) SelectRaw(q string) (*SelectResponse, error) {
 	return r, nil
 }
 
-/*
- * Performs a Solr Update query against a given update document
- * specified in a map[string]interface{} type
- * NOTE: Requires JSON updates to be enabled, see;
- * http://wiki.apache.org/solr/UpdateJSON
- * FUTURE: Will ask for solr version details in Connection and
- * act appropriately
- */
-func (c *Connection) Update(m map[string]interface{}, commit bool) (*UpdateResponse, error) {
+// Performs a raw Select query given a raw query string
+func (c *Connection) SelectRaw(q *Query) (*SelectResponse, error) {
+	body, err := HTTPGet(SolrSelectString(c, q))
 
-	// encode "json" to a byte array & check
+	if err != nil {
+		return nil, fmt.Errorf("Some sort of http failure") // TODO: investigate how net/http fails
+	}
+
+	r, err := SelectResponseFromHTTPResponse(body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+//  Performs a Solr Update query against a given update document
+//  specified in a map[string]interface{} type
+//  NOTE: Requires JSON updates to be enabled, see;
+//  http://wiki.apache.org/solr/UpdateJSON
+//  FUTURE: Will ask for solr version details in Connection and
+//  act appropriately.
+func (c *Connection) Update(m map[string]interface{}, commit bool) (*UpdateResponse, error) {
 	payload, err := JSONToBytes(m)
 	if err != nil {
 		return nil, err
 	}
 
-	// perform request
 	resp, err := HTTPPost(
 		SolrUpdateString(c, commit),
 		[][]string{{"Content-Type", "application/json"}},
@@ -529,7 +494,6 @@ func (c *Connection) Update(m map[string]interface{}, commit bool) (*UpdateRespo
 		return nil, err
 	}
 
-	// decode the response & check
 	decoded, err := BytesToJSON(&resp)
 	if err != nil {
 		return nil, err
@@ -542,7 +506,3 @@ func (c *Connection) Update(m map[string]interface{}, commit bool) (*UpdateRespo
 
 	return &UpdateResponse{true}, nil
 }
-
-// func (c *Connection) Commit() (*UpdateResponse, error) {
-
-// }
