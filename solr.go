@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Represents a Solr document, as returned by Select queries.
@@ -83,75 +84,103 @@ func (q *Query) ParamAdd(name string, value string) *Query {
 	return q
 }
 
+func (q *Query) ParamAddMulti(field string, v []string) *Query {
+	for _, val := range v {
+		q.params.Add(field, val)
+	}
+	return q
+}
+
 func (q *Query) ParamSet(name string, value string) *Query {
 	q.params.Set(name, value)
 	return q
 }
 
+// http://wiki.apache.org/solr/CommonQueryParameters#fl
+func (q *Query) Field(v []string) *Query {
+	q.ParamSet("fl", strings.Join(v, ","))
+	return q
+}
+
 // http://wiki.apache.org/solr/CommonQueryParameters#fq
 func (q *Query) Filter(v string) *Query {
-	q.params.Add("fq", v)
+	q.ParamAdd("fq", v)
+	return q
+}
+
+func (q *Query) FilterTag(v, t string) *Query {
+	q.ParamAdd("fq", "{!tag="+t+"}"+v)
 	return q
 }
 
 // http://wiki.apache.org/solr/SimpleFacetParameters#facet
 func (q *Query) Facet() *Query {
-	q.params.Set("facet", "true")
+	q.ParamSet("facet", "true")
 	return q
 }
 
 // http://wiki.apache.org/solr/SimpleFacetParameters#facet.limit
 func (q *Query) FacetLimit(v int) *Query {
-	q.params.Set("facet.limit", strconv.Itoa(v))
+	q.ParamSet("facet.limit", strconv.Itoa(v))
 	return q
 }
 
 // http://wiki.apache.org/solr/SimpleFacetParameters#facet.field
 func (q *Query) FacetField(v string) *Query {
-	q.params.Add("facet.field", v)
+	q.ParamAdd("facet.field", v)
+	return q
+}
+
+func (q *Query) FacetFieldExclude(v, e string) *Query {
+	q.ParamAdd("facet.field", "{!ex="+e+"}"+v)
 	return q
 }
 
 func (q *Query) FacetFieldMulti(v []string) *Query {
+	q.ParamAddMulti("facet.field", v)
+	return q
+}
+
+func (q *Query) FacetFieldExcludeMulti(v []string, e string) *Query {
 	for _, val := range v {
-		q.params.Add("facet.field", val)
+		q.FacetFieldExclude(val, e)
 	}
 	return q
 }
 
 // http://wiki.apache.org/solr/CommonQueryParameters#rows
 func (q *Query) Rows(v int) *Query {
-	q.params.Set("rows", strconv.Itoa(v))
+	q.ParamSet("rows", strconv.Itoa(v))
 	return q
 }
 
 // http://wiki.apache.org/solr/CommonQueryParameters#start
 func (q *Query) Start(v int) *Query {
-	q.params.Set("start", strconv.Itoa(v))
+	q.ParamSet("start", strconv.Itoa(v))
 	return q
 }
 
 // http://wiki.apache.org/solr/CommonQueryParameters#sort
 func (q *Query) Sort(v string) *Query {
-	q.params.Set("sort", v)
+	q.ParamSet("sort", v)
 	return q
 }
 
 // http://wiki.apache.org/solr/CommonQueryParameters#defType
 func (q *Query) DefType(v string) *Query {
-	q.params.Set("deftype", v)
+	q.ParamSet("deftype", v)
 	return q
 }
 
 // http://wiki.apache.org/solr/CommonQueryParameters#debugQuery
 func (q *Query) Debug() *Query {
-	q.params.Set("debugQuery", "true")
+	q.ParamSet("debugQuery", "true")
 	return q
 }
 
 // http://wiki.apache.org/solr/CommonQueryParameters#omitHeader
 func (q *Query) OmitHeader() *Query {
-	q.params.Set("omitHeader", "true")
+	q.ParamSet("omitHeader", "true")
 	return q
 }
 
