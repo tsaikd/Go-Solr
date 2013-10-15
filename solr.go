@@ -455,7 +455,7 @@ func chunk(s []interface{}, sz int) [][]interface{} {
 //  Note: this doesn't actually hold a connection, its just
 //        a container for holding a hostname & port
 func Init(addr string) (*Connection, error) {
-	u, err := url.Parse(addr)
+	u, err := url.Parse(strings.TrimRight(addr, "/ "))
 	if err != nil {
 		fmt.Errorf("Invalid address", err)
 		return nil, err
