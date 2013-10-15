@@ -319,7 +319,7 @@ func BytesToJSON(b *[]byte) (*interface{}, error) {
 	var container interface{}
 	err := json.Unmarshal(*b, &container)
 	if err != nil {
-		return nil, fmt.Errorf("Response decode error")
+		return nil, fmt.Errorf("Response decode error\n%s", string((*b)[0:]))
 	}
 	return &container, nil
 }
@@ -412,12 +412,12 @@ func BuildResponse(j *interface{}) (*SelectResponse, error) {
 func SelectResponseFromHTTPResponse(b []byte) (*SelectResponse, error) {
 	j, err := BytesToJSON(&b)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to decode")
+		return nil, fmt.Errorf("Unable to decode\n%s", err.Error())
 	}
 
 	resp, err := BuildResponse(j)
 	if err != nil {
-		return nil, fmt.Errorf("Error building response")
+		return nil, fmt.Errorf("Error building response\n%s", err.Error())
 	}
 
 	return resp, nil
