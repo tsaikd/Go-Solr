@@ -21,7 +21,7 @@ Import the `solr` package (it is assumed you know how to build/install it, if no
 
 ```go
 // connect to server running on localhost port 8983
-s, err := solr.Init("localhost", 8983)
+s, err := solr.Init("http://localhost:8983")
 ```
 
 ### Performing Select Queries - solr.Select()
@@ -31,18 +31,15 @@ Select queries are performed using the `solr.Select(q *Query)` method, passing i
 Here's an example:
 
 ```go
-q := solr.Query{
-    Params: solr.URLParamMap{
-        "q": []string{"id:31"},
-        "facet.field": []string{"some_field", "some_other_field"},
-        "facet": "true",
-    },
-    Rows: 10,
-    Sort: "title ASC",
-}
+q := solr.NewQuery()
+q.ParamSet("q", "id:31")
+q.ParamSet("rows", "10")
+q.ParamSet("sort", "title ASC")
+q.ParamSet("facet", "true")
+q.ParamAddMulti("facet.field", []string{"some_field", "some_other_field"})
 ```
 
-Here we have defined a set of URL parameters - `q`, `facet.field`, `facet`, `rows` and `sort` using the `solr.Query{}` struct. Under the hood this would work out as the following Solr query string:
+Here we have defined a set of URL parameters - `q`, `facet.field`, `facet`, `rows` and `sort`. Under the hood this would work out as the following Solr query string:
 
 ```
 GET http://localhost:8983/solr/select?q=id:31&facet.field=some_field&facet.field=some_other_field&facet=true
@@ -53,7 +50,7 @@ Notice that `facet_field`, like `q`, is an array of strings and appears multiple
 Performing a query using our `solr.Query()` is simple and shown below
 
 ```go
-res, err := s.Select(&q)
+res, err := s.Select(q)
 if err != nil {
   fmt.Println(err)
 }
@@ -61,7 +58,7 @@ if err != nil {
 // ...
 ```
 
-A pointer to `q` is passed to `s.Select()`, and returned is a pointer to a `SelectResponse` (`res`) and an `error` (`err`) if an error occurred.
+`q` is passed to `s.Select()`, and returned is a pointer to a `SelectResponse` (`res`) and an `error` (`err`) if an error occurred.
 
 Iterating over the results is shown later in this document.
 
